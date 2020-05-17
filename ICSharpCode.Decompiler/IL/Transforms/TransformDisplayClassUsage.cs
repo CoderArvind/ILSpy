@@ -282,14 +282,14 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				if (!body.LocalSignature.IsNil || body.ExceptionRegions.Length != 0)
 					return false;
 				var reader = body.GetILReader();
-				if (reader.Length != 7)
+				if (reader.Length < 7)
 					return false;
 				// IL_0000: ldarg.0
 				// IL_0001: call instance void [mscorlib]System.Object::.ctor()
 				// IL_0006: ret
-				if (reader.DecodeOpCode() != ILOpCode.Ldarg_0)
+				if (DecodeOpCodeSkipNop(ref reader) != ILOpCode.Ldarg_0)
 					return false;
-				if (reader.DecodeOpCode() != ILOpCode.Call)
+				if (DecodeOpCodeSkipNop(ref reader) != ILOpCode.Call)
 					return false;
 				var baseCtorHandle = MetadataTokenHelpers.EntityHandleOrNil(reader.ReadInt32());
 				if (baseCtorHandle.IsNil)
@@ -299,10 +299,19 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					return false;
 				if (!objectCtor.IsConstructor || objectCtor.Parameters.Count != 0)
 					return false;
-				return reader.DecodeOpCode() == ILOpCode.Ret;
+				return DecodeOpCodeSkipNop(ref reader) == ILOpCode.Ret;
 			} catch (BadImageFormatException) {
 				return false;
 			}
+		}
+
+		ILOpCode DecodeOpCodeSkipNop(ref BlobReader reader)
+		{
+			ILOpCode code;
+			do {
+				code = reader.DecodeOpCode();
+			} while (code == ILOpCode.Nop);
+			return code;
 		}
 
 		VariableToDeclare AddVariable(DisplayClass result, ILInstruction init, out IField field)
